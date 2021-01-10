@@ -1,0 +1,120 @@
+-
+   name: 'Install and enable firewalld'
+   hosts: target1
+   tasks:
+      -
+        name: 'Install Firewalld'
+        yum:
+          name: firewalld
+          state: present
+      -
+        name: Add port to firewalld
+        firewalld:
+            port: "{{ item }}"
+            permanent: yes
+            state: enabled
+        loop:
+          - 80/tcp
+      -
+        name: reload service firewalld
+        systemd:
+            name: firewalld
+            state: reloaded
+      -
+        name: 'Enable connectivity'
+        command: 'setsebool httpd_can_network_connect_db=1'
+-
+   name: 'Install MariaDB'
+   hosts: target2
+   vars:
+     mysql_root_password: passwd
+   tasks:
+      - 
+        name: 'Install mariadb'
+        yum:
+          name: mariadb-server #debian: mysql-server
+          state: present
+      - 
+        name: Install the Python MySQL Support Libraries
+        yum:
+           pkg: MySQL-python 
+           state: latest    
+      -
+        name: 'Allow connection from outside'
+        lineinfile:
+                path: /etc/my.cnf
+                line: 'bind-address 0.0.0.0'     
+      -
+        name: 'Start and enable mariadb service'
+        service:
+            name: mariadb
+            state: started
+            enabled: yes
+      -
+        name: Add port to firewalld
+        firewalld:
+            port: "{{ item }}"
+            permanent: yes
+            state: enabled      
+        loop:
+          - 3306/tcp
+      -
+        name: reload service firewalld
+        systemd:
+            name: firewalld
+            state: reloaded          
+      -
+        name: Create database user with password and all database privileges and 'WITH GRANT OPTION'
+        mysql_user:
+           name: ecomuser
+           password: ecompassword
+           priv: '*.*:ALL,GRANT'
+           host: 192.168.189.133
+           state: present
+      -
+        name: Create a new database with name 'ecomdb'
+        mysql_db:
+           name: ecomdb
+           state: present    
+      - 
+        name: insert statements database
+        mysql_db:
+           name: ecomdb
+           state: present
+           target: db-load-script.sql     
+-
+  name: Install PHP
+  hosts: target1
+  vars: 
+    packages:
+      - httpd
+      - php
+      - php-mysql
+  tasks:
+    - 
+        name: 'Install PHP'
+        yum:
+          name: '{{ packages }}'
+          state: present
+    -
+        name: 'Configure httpd'
+        command: "sudo sed -i 's/index.html/index.php/g' /etc/httpd/conf/httpd.conf"
+    -
+        name: 'Start and enable httpd service'
+        service:
+            name: httpd
+            state: started
+            enabled: yes
+    -
+        name: 'Download git'
+        yum:
+          name: git
+          state: present
+    -
+        name: 'download code'
+        command: '{{ item}}'
+        loop:
+          - git clone https://github.com/kodekloudhub/learning-app-ecommerce.git /var/www/html/
+          - sudo sed -i 's/172.20.1.101/192.168.189.137/g' /var/www/html/index.php
+    
+    

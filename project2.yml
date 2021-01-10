@@ -1,0 +1,107 @@
+---
+-
+   name: 'Install and enable firewalld'
+   hosts: target1
+   vars: 
+    packages:
+      - httpd
+      - php
+      - php-mysq
+      - firewalld
+      - git
+    commands:
+      - setsebool httpd_can_network_connect_db=1 #Enable connectivity
+      - sudo sed -i 's/index.html/index.php/g' /etc/httpd/conf/httpd.conf #Configure httpd
+      - git clone https://github.com/kodekloudhub/learning-app-ecommerce.git /var/www/html/
+      - sudo sed -i 's/172.20.1.101/192.168.189.137/g' /var/www/html/index.php
+   tasks:
+      -
+        name: 'Install Packages'
+        yum:
+          name: '{{ packages }}'
+          state: present
+      -
+        name: Add port to firewalld
+        firewalld:
+            port: "{{ item }}"
+            permanent: yes
+            state: enabled
+        loop:
+          - 80/tcp
+      -
+        name: reload service firewalld
+        systemd:
+            name: firewalld
+            state: reloaded
+      -
+        name: 'download code'
+        command: '{{ commands }}'
+      -
+        name: 'Start and enable httpd service'
+        service:
+            name: httpd
+            state: started
+            enabled: yes
+-
+   name: 'Install MariaDB'
+   hosts: target2
+   vars:
+     mysql_db: ecomdb
+     mysql_username: ecomuser
+     mysql_password: ecompassword
+     packages:
+       - mariadb-server
+       - firewalld
+   tasks:
+      - 
+        name: 'Install packages for db host'
+        yum:
+          name: '{{ packages }}' #debian: mysql-server
+          state: present
+      - 
+        name: Install the Python MySQL Support Libraries
+        yum:
+           pkg: MySQL-python 
+           state: latest        
+      -
+        name: 'Start and enable mariadb service'
+        service:
+            name: mariadb
+            state: started
+            enabled: yes
+      -
+        name: Add port to firewalld
+        firewalld:
+            port: "{{ item }}"
+            permanent: yes
+            state: enabled      
+        loop:
+          - 3306/tcp
+      -
+        name: reload service firewalld
+        systemd:
+            name: firewalld
+            state: reloaded          
+      -
+        name: Create database user with password and all database privileges and 'WITH GRANT OPTION'
+        mysql_user:
+           name: '{{ mysql_username }}'
+           password: '{{ mysql_password }}'
+           priv: '*.*:ALL,GRANT'
+           host: 192.168.189.133
+           state: present
+      -
+        name: Create a new database with name 'ecomdb'
+        mysql_db:
+           name: '{{ mysql_db }}'
+           state: present    
+      - 
+        name: insert statements database
+        mysql_db:
+           name: '{{ mysql_db }}'
+           state: present
+           target: db-load-script.sql     
+
+
+    
+    
