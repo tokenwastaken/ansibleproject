@@ -84,7 +84,7 @@
            name: '{{ mysql_username }}'
            password: '{{ mysql_password }}'
            priv: '*.*:ALL,GRANT'
-           host: 192.168.189.133
+           host: '%'
            state: present
       -
         name: Create a new database with name 'ecomdb'
