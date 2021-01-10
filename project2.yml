@@ -52,17 +52,13 @@
      packages:
        - mariadb-server
        - firewalld
+       - MySQL-python 
    tasks:
       - 
         name: 'Install packages for db host'
         yum:
           name: '{{ packages }}' #debian: mysql-server
-          state: present
-      - 
-        name: Install the Python MySQL Support Libraries
-        yum:
-           pkg: MySQL-python 
-           state: latest        
+          state: present      
       -
         name: 'Start and enable mariadb service'
         service:
